@@ -561,6 +561,8 @@ var HueAPP = {
 		        
 		        HueAPP.SetAjax( HueAPP.settings.hueDiscoverURI , "GET", {}, null, false, ProxyNo)
 		            .then(function(v) {
+                        console.log('hueDiscoverURI:', v);
+
 		            	/* Cevap Gelmediyse */
 		            	if( (typeof v) != "object" ){
 		                	DiscoverStatus = false
@@ -655,7 +657,7 @@ var HueAPP = {
 			    	HueAPP.settings.app_api_user 	= str_id;
 			    	HueAPP.settings.app_api_ip 		= str_ip;
 			    	HueAPP.settings.app_api_key 	= str_apikey;
-    				HueAPP.settings.app_api_base 	= 'https://'+str_ip+'/api/'+ str_apikey +'';
+    				HueAPP.settings.app_api_base 	= 'http://'+str_ip+'/api/'+ str_apikey +'';
                     return true;
                 }else{
                     return false;
