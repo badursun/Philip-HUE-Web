@@ -1,3 +1,5 @@
+let $lightsTicker;
+let RepeatTimingLights=600;
 var SettingsReady=false;
 var HueNetwork=false;
 var HueUser=false;
@@ -120,34 +122,33 @@ var HueAPP = {
     },
     PhilipsHUE:{
     	Lights: function(){
-    		console.log('HueAPP=>PhilipsHUE=>Lights');
+    		console.log('HueAPP=>PhilipsHUE=>Lights(ticker)');
     		let LightsAPI = HueAPP.settings.app_api_base + '/lights/';
     		let LightsContainer = $('#hue_elements');
-
-			HueAPP._loading.show( LightsContainer , {spinner:true, dark: true, text: 'Yükleniyor...'});
 
             HueAPP.SetAjax(LightsAPI, "GET", {}, null, false, ProxyNo)
                 .then(function(v) {
                 	app_api_lights = v;
                 	app_api_lights_count = Object.keys(app_api_lights).length;
-                	console.log( 'Lamba Sayısı: ' + app_api_lights_count );
+                	//console.log( 'Lamba Sayısı: ' + app_api_lights_count );
 
+                    let $total = v.length;
 					$.each( v, function( key, value ) {
 						// console.log( 'DATA: '+ key )
                     	LightsContainer.append( HueAPP.PhilipsHUE.LightsTemplate( v[key], key ) );
 					});
-
-                    //HueAPP._loading.hide( $('.logo-holder') );
-                    //HueAPP.sessionSaver();
                 })
                 .catch(function(v) {
-                	console.log('Error')
-                    HueAPP._loading.hide( $('.logo-holder') );
+                	// console.log('Error')
                 })
                 .finally(function(v) {
-                	console.log('Finally')
-                	HueAPP._loading.hide( LightsContainer );
+                	// console.log('Finally')
+                    HueAPP.PhilipsHUE.CheckLightsData();
 
+                    if(typeof $lightsTicker=='undefined'){
+                        console.log('ticker set: ', RepeatTimingLights);
+                        $lightsTicker = setInterval( function(){ HueAPP.PhilipsHUE.Lights() }, RepeatTimingLights);
+                    }
                 	HueAPP.PhilipsHUE.LoadFormController();
                 });
     	},
@@ -315,58 +316,86 @@ var HueAPP = {
     			return '<span class="badge badge-pill badge-danger">Kapalı/Erişilemez</span>';
     		};
     	},
+        CheckLightsData: function(){
+            $('.lightsJson').each(function(index, el) {
+                let LightsJson = JSON.parse( $(this).val() );
+                let $lightId        = LightsJson.uniqueid
+                let LightStatus     = LightsJson.state.on ? 'text-warning' : 'text-dark';
+                let Status          = LightsJson.state.on ? 'checked' : '';
+                let LightReachable  = LightsJson.state.reachable;
+                let LightColored    = LightsJson.state.xy ? '' : 'disabled'
+
+                let $lightContainer = $('[data-id="'+ $lightId +'"]');
+                    $lightContainer.find('[data-LightStatus]').removeClass('text-warning text-dark').addClass(LightStatus);
+                    $lightContainer.find('input[name="bri"]').val(LightsJson.state.bri);
+                    $lightContainer.find('input[name="xy"]').val(LightsJson.state.sat);
+                    $lightContainer.find('input[name="state"]').val(LightsJson.state.on);
+                //console.log('CheckLightsData')
+            });
+        },
     	LightsTemplate: function(LightsJson, Id){
-    		console.log('HueAPP=>PhilipsHUE=>LightsTemplate');
-    		console.log('Fetched: ' + LightsJson.name);
-    		let LightStatus 	= LightsJson.state.on ? 'text-warning' : 'text-dark';
-    		let Status 			= LightsJson.state.on ? 'checked' : '';
-    		let LightReachable 	= LightsJson.state.reachable;
-    		let LightColored 	= LightsJson.state.xy ? '' : 'disabled'
+            // console.log('HueAPP=>PhilipsHUE=>LightsTemplate');
+            // console.log('Fetched: ' + LightsJson.name);
+            let $lightId        = LightsJson.uniqueid
+            let LightStatus     = LightsJson.state.on ? 'text-warning' : 'text-dark';
+            let Status          = LightsJson.state.on ? 'checked' : '';
+            let LightReachable  = LightsJson.state.reachable;
+            let LightColored    = LightsJson.state.xy ? '' : 'disabled'
 
-    		let LT = '' +
-            '<div class="col-12 col-md-6 col-lg-3">' +
-            '    <div class="card invert">' +
-            '        <div class="page-heading">' +
-            '            <div class="page-heading__container page-heading__container--center">' +
-            '                <h1 class="title">'+ LightsJson.name +'</h1>' +
-            '                <p class="caption">'+ HueAPP.PhilipsHUE.LightsStatusText( LightsJson.state ) +'</p>' +
-            '            </div>' +
-            '        </div>' +
-            '        <div class="card-body text-center">' +
-            '            <div class="icon-box icon-box--xlg icon-box--inline icon-box--bordered '+ LightStatus +'"><span class="li-lamp"></span></div>' +
-            '        </div>' +
-            '        <div class="card-body padding-top-0">' +
+            if( $('[name="'+ $lightId +'"]')[0] ){
+                $('[name="'+ $lightId +'"]').val( JSON.stringify(LightsJson) );
+                // console.log('Input Update');
+            }else{
+                // console.log('Input Append');
+                $('<input type="hidden" class="lightsJson" name="'+ $lightId +'" value=\''+ JSON.stringify(LightsJson) +'\' />').appendTo('#hue_elements');
+            };
 
-            '            <form id="light_'+ Id +'" data-id="'+ Id +'" class="settings_form">' +
-            '            	<input type="hidden" name="bri" value="'+ LightsJson.state.bri +'">' +
-            // '            	<input type="hidden" name="hue" value="'+ LightsJson.state.hue +'">' +
-            // '            	<input type="hidden" name="sat" value="'+ LightsJson.state.sat +'">' +
-            '            	<input type="hidden" name="xy" value="'+ LightsJson.state.sat +'">' +
-            '            	<input type="hidden" name="state" value="'+ LightsJson.state.on +'">' +
-            '            </form>' +
+            // console.log('Check: #hue_elements > div[data-id="'+ $lightId +'"]');
+            
+            if( $('div[data-id="'+ $lightId +'"]').length == 0 ){
+                console.log('Template Added');
+                let LT = '' +
+                '<div class="col-12 col-md-6 col-lg-3 lighttemplate" data-id="'+ $lightId +'">' +
+                '    <div class="card invert">' +
+                '        <div class="page-heading">' +
+                '            <div class="page-heading__container page-heading__container--center">' +
+                '                <h1 class="title">'+ LightsJson.name +'</h1>' +
+                '                <p class="caption">'+ HueAPP.PhilipsHUE.LightsStatusText( LightsJson.state ) +'</p>' +
+                '            </div>' +
+                '        </div>' +
+                '        <div class="card-body text-center">' +
+                '            <div data-LightStatus="" class="icon-box icon-box--xlg icon-box--inline icon-box--bordered '+ LightStatus +'"><span class="li-lamp"></span></div>' +
+                '        </div>' +
+                '        <div class="card-body padding-top-0">' +
 
-            '            <div class="row">' +
-            '                <div class="col-9">' +
-            '                    <input type="text" data-min="0" data-max="254" data-from="'+ LightsJson.state.bri +'" data-light-id="'+ Id +'" data-light-status="'+ LightsJson.state.on +'" data-light-reachable="'+LightReachable+'" name="bri" id="bri_'+ Id +'" class="slider" value="'+ LightsJson.state.bri +'"> ' +
-            '                </div>' +
-            '                <div class="col-3 text-right">';
-            if(LightsJson.state.xy){
-	            LT+=' 					<input type="text" class="hsl" id="color_'+ Id +'" data-x="'+ LightsJson.state.xy[0] +'" data-y="'+LightsJson.state.xy[1]+'" data-bri="'+LightsJson.state.bri+'" '+LightColored+' />';
-	            // LT+='                    <button type="button" id="color_'+ Id +'" class="btn btn-light btn-icon active" data-toggle="button" aria-pressed="true" autocomplete="off">';
-	            // LT+='                        <span class="fa fa-power-off"></span>';
-	            // LT+='                    </button>';
+                '            <form id="light_'+ Id +'" data-id="'+ Id +'" class="settings_form">' +
+                '               <input type="hidden" name="bri" value="'+ LightsJson.state.bri +'">' +
+                // '                <input type="hidden" name="hue" value="'+ LightsJson.state.hue +'">' +
+                // '                <input type="hidden" name="sat" value="'+ LightsJson.state.sat +'">' +
+                '               <input type="hidden" name="xy" value="'+ LightsJson.state.sat +'">' +
+                '               <input type="hidden" name="state" value="'+ LightsJson.state.on +'">' +
+                '            </form>' +
+
+                '            <div class="row">' +
+                '                <div class="col-9">' +
+                '                    <input type="text" data-min="0" data-max="254" data-from="'+ LightsJson.state.bri +'" data-light-id="'+ Id +'" data-light-status="'+ LightsJson.state.on +'" data-light-reachable="'+LightReachable+'" name="bri" id="bri_'+ Id +'" class="slider" value="'+ LightsJson.state.bri +'"> ' +
+                '                </div>' +
+                '                <div class="col-3 text-right">';
+                if(LightsJson.state.xy){
+                    LT+='                   <input type="text" class="hsl" id="color_'+ Id +'" data-x="'+ LightsJson.state.xy[0] +'" data-y="'+LightsJson.state.xy[1]+'" data-bri="'+LightsJson.state.bri+'" '+LightColored+' />';
+                }
+
+                LT+='<label class="switch switch-sm">';
+                LT+='<input type="checkbox" id="state_'+ Id +'" name="switch_8" '+Status+' />';
+                LT+='<span></span> </label>';
+                LT+='                </div>' +
+                '            </div>' +
+                '        </div>' +
+                '    </div>' +
+                '</div>';
+
+                return LT;
             }
-
-            LT+='<label class="switch switch-sm">';
-            LT+='<input type="checkbox" id="state_'+ Id +'" name="switch_8" '+Status+' />';
-            LT+='<span></span> </label>';
-            LT+='                </div>' +
-            '            </div>' +
-            '        </div>' +
-            '    </div>' +
-            '</div>';
-
-            return LT;
     	},
     	/*
     		HUE APP
@@ -425,7 +454,7 @@ var HueAPP = {
             let DiscoverMsg = [];
             let TryAgain = false;
 
-	        HueAPP.SetAjax( 'https://'+localStorage["hue-bridge-ip"]+'/api' , "POST", $data, null, false, ProxyNo)
+	        HueAPP.SetAjax( 'http://'+localStorage["hue-bridge-ip"]+'/api' , "POST", $data, null, false, ProxyNo)
 	            .then(function(v) {
 	            	/* Cevap Gelmediyse */
 	            	if( (typeof v) != "object" ){
@@ -598,9 +627,10 @@ var HueAPP = {
 		                HueAPP.alert('error', 'İşlem Başarısız', 'Bir Hata Oluştu, işlem yapılamadı.', null, null);
 		            })
 		            .finally(function(v) {
-		                HueAPP.alert( DiscoverMsg[0] , DiscoverMsg[1], DiscoverMsg[2], null, null);
+		                HueAPP.alert( DiscoverMsg[0] , DiscoverMsg[1], DiscoverMsg[2], null, {confirm:true, cancel:false});
 
 		                HueAPP.PhilipsHUE.CheckAppRegister();
+                        HueAPP.PhilipsHUE.Lights();
 		            });
             },1000);
         },
@@ -611,7 +641,6 @@ var HueAPP = {
         init: function(){
         	console.log('HueAPP=>PhilipsHUE=>Init');
         	if( HueAPP.PhilipsHUE.keyExist() ){
-        		//$('#api_key').html( localStorage["hue-user-key"] );
         		HueAPP.PhilipsHUE.updateKeyInput();
         		HueAPP.PhilipsHUE.Lights();
         	}else{
@@ -659,7 +688,7 @@ var HueAPP = {
         	let str_ip 		= localStorage["hue-bridge-ip"]; 	// data-key="hue-bridge-ip"
         	let str_apikey 	= localStorage["hue-bridge-key"]; 	// data-key="hue-bridge-key"
 
-                if( str_id !== undefined || str_ip !== undefined || str_apikey !== undefined ) {
+                if( !(str_id === undefined || str_ip === undefined || str_apikey === undefined) ) {
                 	/* Update Settings */
 			    	HueAPP.settings.app_api_user 	= str_id;
 			    	HueAPP.settings.app_api_ip 		= str_ip;
@@ -687,10 +716,6 @@ var HueAPP = {
         saveCredentials: function(Key, Val) {
         	console.log('HueAPP=>PhilipsHUE=>saveCredentials');
             if( HueAPP.PhilipsHUE.CanIuseIndexedDB() ){
-            	// data-key="hue-bridge-key"
-            	// data-key="hue-bridge-id"
-            	// data-key="hue-bridge-ip"
-
             	localStorage.setItem(Key, Val);
             	if( $('input[data-key="'+Key+'"]').length ){
             		$('input[data-key="'+Key+'"]').val( Val );
@@ -703,6 +728,8 @@ var HueAPP = {
             }else{
             	HueAPP.alert('error', 'Hata Oluştu', 'Anahtar Kayıt Edilemedi !', null, null);
             }
+
+            HueAPP.PhilipsHUE.keyExist();
         },
 
         clearCredentials: function(){
@@ -719,19 +746,22 @@ var HueAPP = {
                 cancelButtonText        : 'Vazgeç'
             }).then((result) => {
                 if (result.value) {
-                    localStorage.removeItem("hue-user-key");
-                    $('encrypted.decrypted').each(function(index, el) {
-                        let $dom = $(this);
-                            $dom.show();
-                            $dom.next().remove();
-                    });
-                    for (var i = 0; i < $('input.encryptionKey').length; i++) {
-                        $('#key'+(i+1)).val('');
-                    }
+                    localStorage.removeItem("hue-bridge-id");
+                    localStorage.removeItem("hue-bridge-ip");
+                    localStorage.removeItem("hue-bridge-key");
+                    // $('encrypted.decrypted').each(function(index, el) {
+                    //     let $dom = $(this);
+                    //         $dom.show();
+                    //         $dom.next().remove();
+                    // });
+                    // for (var i = 0; i < $('input.encryptionKey').length; i++) {
+                    //     $('#key'+(i+1)).val('');
+                    // }
                     /*Show Business*/
                     HueAPP._loading.show( $('.modal-content')  , {spinner:true, dark: true, text: 'Lütfen Bekleyin...'});
                     setTimeout(function(){
                         HueAPP._loading.hide( $('.modal-content') );
+                        location.reload(true);
                     },750);
                 }
             });
