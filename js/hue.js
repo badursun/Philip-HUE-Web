@@ -94,20 +94,24 @@ var HueAPP = {
     SetAjax: function(url, method, data, callback, globalMi=true, Proxy=ProxyNo){
         //console.log('app=>SetAjax('+globalMi+')');
         return new Promise(function(resolve, reject) {
+            console.log('withCredentials=false');
         	if(Proxy==true){
         		url = 'https://cors-anywhere.herokuapp.com/' + url;
         	};
 
             $.ajax({
-                type    : method,
-                global  : globalMi,
-                url     : url,
-                data    : data,
-                success : function(result) {
+                type        : method,
+                global      : globalMi,
+                beforeSend  : function (request) {
+                    request.withCredentials = false;
+                },
+                url         : url,
+                data        : data,
+                success     : function(result) {
                 	console.log(result)
                     return resolve(result);
                 },
-                error: function(e) {
+                error       : function(e) {
                     reject(e);
                     HueAPP.alert('error', 'İşlem Başarısız', 'Bir Hata Oluştu<br />'+e+'', null, null);
                 }
@@ -156,9 +160,12 @@ var HueAPP = {
 
 			let LightStateApi = HueAPP.settings.app_api_base +'/lights/'+ id +'/state';
 			$.ajax({
-				url:  LightStateApi,
-				type: "PUT",
-				data: HueData
+				url         :  LightStateApi,
+				type        : "PUT",
+				data        : HueData,
+                beforeSend  : function (request) {
+                    request.withCredentials = false;
+                }
 			});
     	},
 		serializeToJson: function(serializer){
